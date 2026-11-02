@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+package bioskop;
+
+// Definisi Layanan RPC untuk Reservasi Tiket Bioskop
+service LayananBioskop {
+  // 1. Server Streaming: Mengirim update status semua kursi secara real-time
+  rpc GetDaftarKursi (KosongRequest) returns (stream KursiStatus);
+
+  // 2. Unary: Memesan kursi tertentu dengan penanganan deduplikasi (request_id)
+  rpc PesanKursi (PesanRequest) returns (PesanResponse);
+
+  // 3. Unary: Membatalkan pesanan kursi
+  rpc BatalPesan (BatalRequest) returns (PesanResponse);
+
+  // 4. Unary: Mengecek status tiket yang sudah dipesan
+  rpc CekTiket (CekTiketRequest) returns (TiketDetail);
+}
+
+// Struct / Pesan Data
+message KosongRequest {}
+
+message KursiStatus {
+  string nomor_kursi = 1; // Contoh: "A1", "A2", "B1"
+  bool terisi = 2;        // true = sudah dipesan, false = kosong
+  string pemesan = 3;     // nama pemesan jika terisi
+}
+
+message PesanRequest {
+  string request_id = 1;  // UUID unik dari client untuk cegah transaksi ganda (at-most-once)
+  string nama_pemesan = 2;
+  string nomor_kursi = 3;
+}
+
+message BatalRequest {
+  string request_id = 1;
+  string nama_pemesan = 2;
+  string nomor_kursi = 3;
+}
+
+message PesanResponse {
+  bool sukses = 1;
+  string pesan = 2;
+  string kode_booking = 3;
+}
+
+message CekTiketRequest {
+  string kode_booking = 1;
+}
+
+message TiketDetail {
+  bool ditemukan = 1;
+  string nama_pemesan = 2;
+  string nomor_kursi = 3;
+  string status = 4;
+}
