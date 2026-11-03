@@ -12,7 +12,11 @@ import bioskop_pb2_grpc as pb_grpc
 # ---------------------------------------------------------
 # KODE BARU (40 Kursi: A1-D10):
 DATA_KURSI = {
-    f"{baris}{nomor}": {"terisi": False, "pemesan": ""}
+    f"{baris}{nomor}": {
+        "terisi": False,
+        "pemesan": "",
+        "kode_booking": ""
+    }
     for baris in ["A", "B", "C", "D"]
     for nomor in range(1, 11)
 }
@@ -77,6 +81,9 @@ class LayananBioskopServicer(pb_grpc.LayananBioskopServicer):
                 kursi["terisi"] = True
                 kursi["pemesan"] = request.nama_pemesan
                 kode_booking = f"TKT-{uuid.uuid4().hex[:6].upper()}"
+
+                # Simpan kode booking pada data kursi
+                kursi["kode_booking"] = kode_booking
                 
                 DATA_TIKET[kode_booking] = {
                     "nama": request.nama_pemesan,
@@ -97,34 +104,86 @@ class LayananBioskopServicer(pb_grpc.LayananBioskopServicer):
 
     # 3. Unary RPC: Pembatalan pesanan
     def BatalPesan(self, request, context):
+
         with LOCK:
+
+            # Cek apakah request sudah pernah diproses
             if request.request_id in PROSES_REQUEST:
                 return PROSES_REQUEST[request.request_id]
 
+            # Validasi nomor kursi
             if request.nomor_kursi not in DATA_KURSI:
-                response = pb.PesanResponse(sukses=False, pesan="Kursi tidak ditemukan.", kode_booking="")
+
+                response = pb.PesanResponse(
+                    sukses=False,
+                    pesan="Kursi tidak ditemukan.",
+                    kode_booking=""
+                )
+
                 PROSES_REQUEST[request.request_id] = response
                 return response
 
             kursi = DATA_KURSI[request.nomor_kursi]
+
+            # Validasi kepemilikan kursi
             if not kursi["terisi"] or kursi["pemesan"] != request.nama_pemesan:
+
                 response = pb.PesanResponse(
                     sukses=False,
-                    pesan=f"Gagal membatalkan! Kursi {request.nomor_kursi} bukan milik {request.nama_pemesan}.",
+                    pesan=(
+                        f"Gagal membatalkan! Kursi "
+                        f"{request.nomor_kursi} bukan milik "
+                        f"{request.nama_pemesan}."
+                    ),
                     kode_booking=""
                 )
+
             else:
+
+                # Ambil kode booking dari kursi
+                kode_booking = kursi.get("kode_booking", "")
+
+                # Pastikan data tiket benar-benar tersedia
+                if not kode_booking or kode_booking not in DATA_TIKET:
+
+                    response = pb.PesanResponse(
+                        sukses=False,
+                        pesan="Data tiket tidak ditemukan. Pembatalan dibatalkan.",
+                        kode_booking=""
+                    )
+
+                    PROSES_REQUEST[request.request_id] = response
+                    return response
+
+                # Ubah status tiket lama
+                DATA_TIKET[kode_booking]["status"] = "DIBATALKAN"
+
+                # Kosongkan status kursi
                 kursi["terisi"] = False
                 kursi["pemesan"] = ""
+                kursi["kode_booking"] = ""
+
                 response = pb.PesanResponse(
                     sukses=True,
-                    pesan=f"Pemesanan kursi {request.nomor_kursi} berhasil dibatalkan.",
-                    kode_booking=""
+                    pesan=(
+                        f"Pemesanan kursi {request.nomor_kursi} "
+                        f"berhasil dibatalkan. "
+                        f"Kode booking: {kode_booking}"
+                    ),
+                    kode_booking=kode_booking
                 )
-                print(f"[BATAL] Kursi {request.nomor_kursi} dibatalkan oleh {request.nama_pemesan}")
 
+                print(
+                    f"[BATAL] Kursi {request.nomor_kursi} "
+                    f"dibatalkan oleh {request.nama_pemesan} "
+                    f"(Booking: {kode_booking})"
+                )
+
+            # Simpan hasil untuk mekanisme deduplikasi
             PROSES_REQUEST[request.request_id] = response
+
             return response
+
 
     # 4. Unary RPC: Cek Tiket
     def CekTiket(self, request, context):
