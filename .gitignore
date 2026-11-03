@@ -2,3 +2,6 @@ __pycache__/
 *.pyc
 venv/
 .vscode/
+.venv/
+__pycache__/
+*.py[cod]
