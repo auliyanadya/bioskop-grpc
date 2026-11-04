@@ -1,11 +1,15 @@
 import time
 import uuid
+import os
 import grpc
 
 import bioskop_pb2 as pb
 import bioskop_pb2_grpc as pb_grpc
 
-SERVER_ADDRESS = "localhost:50051"
+SERVER_ADDRESS = os.getenv(
+    "BIOSKOP_SERVER",
+    "localhost:50051"
+)
 
 # ---------------------------------------------------------
 # FUNGSI HELPER: RETRY & TIMEOUT (AT-MOST-ONCE)
