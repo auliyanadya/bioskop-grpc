@@ -1,6 +1,7 @@
 
 import uuid
 import grpc
+import os
 import threading
 import sys
 
@@ -19,7 +20,10 @@ import bioskop_pb2_grpc as pb_grpc
 # KONFIGURASI PENGUJIAN
 # ==========================================
 
-SERVER_ADDRESS = "localhost:50051"
+SERVER_ADDRESS = os.getenv(
+    "BIOSKOP_SERVER",
+    "localhost:50051"
+)
 
 JUMLAH_CLIENT = 20
 KURSI_TARGET = "A1"

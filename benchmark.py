@@ -2,6 +2,7 @@
 import csv
 import time
 import uuid
+import os
 import threading
 import grpc
 
@@ -16,7 +17,10 @@ import bioskop_pb2_grpc as pb_grpc
 # KONFIGURASI BENCHMARK
 # ==================================================
 
-SERVER_ADDRESS = "localhost:50051"
+SERVER_ADDRESS = os.getenv(
+    "BIOSKOP_SERVER",
+    "localhost:50051"
+)
 
 CLIENT_SCENARIOS = [1, 5, 20]
 REQUEST_PER_CLIENT = 10
